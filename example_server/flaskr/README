@@ -1,0 +1,5 @@
+flaskr directory contains an example dummy server that can send waypoints to the receiver agv server.  
+To run this flask server, type the following commands into terminal in the example_server directory:  
+export FLASK_APP=flaskr
+export FLASK_ENV=development
+flask run
