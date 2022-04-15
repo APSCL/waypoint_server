@@ -1,4 +1,4 @@
-from app import create_app
+from app import db, create_app
 import sys
 from app.config import ConfigType
 import argparse

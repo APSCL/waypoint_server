@@ -1,4 +1,9 @@
 from app.config import TestingConfig, DevelopmentConfig, DeploymentConfig, ConfigType
+from app.commands import (
+    run_tests
+)
+import click
+from flask.cli import with_appcontext
 from flask import Flask
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
@@ -18,6 +23,8 @@ def create_app(conf_type=ConfigType.DEVELOPMENT):
     register_blueprints(app)
     # set up logging within the app to track recieved requests etc
     configure_logging(app)
+    # set up flask cli commands
+    register_commands(app)
     
     return app
 
@@ -25,6 +32,8 @@ def initialize_config(app, conf_type):
     conf_dict = {conf.name:conf.value for conf in ConfigType}
     conf_class = conf_dict.get(conf_type.name, DevelopmentConfig)
     app.config.from_object(conf_class)
+    # disable warnings
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 def initialize_extensions(app):
     db.init_app(app)
@@ -44,3 +53,18 @@ def register_error_handlers(app):
 # TODO: Set up logging for the APP
 def configure_logging(app):
     pass
+
+def register_commands(app):
+    app.cli.add_command(init_db)
+    app.cli.add_command(test)
+
+ # commands
+@click.command(name='test')
+@with_appcontext
+def test():
+    run_tests()
+
+@click.command(name='init_db')
+@with_appcontext
+def init_db():
+    db.create_all()
