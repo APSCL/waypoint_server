@@ -1,7 +1,8 @@
-from app import db, create_app
-import sys
-from app.config import ConfigType
 import argparse
+import sys
+
+from app.app import create_app
+from app.config import ConfigType
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run_type", type=str, required=False)

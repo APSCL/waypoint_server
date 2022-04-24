@@ -1,5 +1,7 @@
-from enum import Enum
+from app.core.enums import BaseEnum
 
-class AGVState(Enum):
-    READY = 0
-    BUSY = 1
+
+class AGVState(BaseEnum):
+    READY = "READY"
+    BUSY = "BUSY"
+    DONE = "DONE"

@@ -1,11 +1,12 @@
 from enum import Enum
 
+
 class Priority(Enum):
-    LOW = 0
-    MEDIUM = 1
-    HIGH = 2
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 class TaskStatus(Enum):
-    INCOMPLETE = 0
-    IN_PROGRESS = 1
-    COMPLETE = 2
+    INCOMPLETE = "INCOMPLETE"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETE = "COMPLETE"
