@@ -19,7 +19,7 @@ class AGVUpdateSerializer(ma.Schema):
     current_waypoint_order = fields.Integer(required=False)
 
     @pre_load
-    def remove_has_defalt_key_if_none(self, data: dict, **kwargs):
+    def remove_has_default_key_if_none(self, data: dict, **kwargs):
         if data.get("current_task_id") is None:
             data.pop("current_task_id", None)
         if data.get("current_waypoint_order") is None:
@@ -41,7 +41,3 @@ class AGVUpdateSerializer(ma.Schema):
             raise ValidationError("theta is out of bounds from the allowable range of values: [-pi, pi]")
 
         # TODO: Validate data based on which state you're in (READY, BUSY, DONE) for guarantee of data integrity later!
-
-
-class WaypointHandshakeSerializer(ma.Schema):
-    pass

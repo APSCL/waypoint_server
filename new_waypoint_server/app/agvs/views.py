@@ -48,8 +48,7 @@ class AGVListView(Resource):
 class AGVDetailView(Resource):
     def _get_queryset(self):
         return AGV.query
-
-    # make this a endpoint with a variable
+        
     def get(self, id):
         queryset = self._get_queryset().filter_by(id=id).first()
         if not queryset:

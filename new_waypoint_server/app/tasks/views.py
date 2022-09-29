@@ -97,6 +97,7 @@ class TaskListView(Resource):
         return make_response(jsonify({"message": "All Tasks successfully deleted"}), status.HTTP_200_OK)
 
 
+# TODO: Consider a different method for deletion for a task (considering if it already being processed by an AGV)
 class TaskDetailView(Resource):
     def _get_queryset(self):
         return Task.query

@@ -1,12 +1,13 @@
-from enum import Enum
+from app.core.enums import BaseEnum
 
 
-class Priority(Enum):
+class Priority(BaseEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
 
-class TaskStatus(Enum):
+
+class TaskStatus(BaseEnum):
     INCOMPLETE = "INCOMPLETE"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETE = "COMPLETE"

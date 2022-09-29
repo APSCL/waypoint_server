@@ -5,3 +5,4 @@ class AGVState(BaseEnum):
     READY = "READY"
     BUSY = "BUSY"
     DONE = "DONE"
+    STOPPED = "STOPPED"

@@ -1,4 +1,3 @@
-from email.policy import default
 from functools import cached_property
 
 from app.core.utils import euclidean_dist
@@ -133,10 +132,3 @@ class Waypoint(Model):
 
     def __repr__(self):
         return f"WAYPOINT:{self.id}| TASK:{self.task_id} | ({self.x},{self.y}) | order:{self.order} | visited:{self.visited}"
-
-
-class Command(Model):
-    __tablename__ = "command"
-    id = Column(db.Integer, primary_key=True)
-    # registered to an agv
-    # command code

@@ -2,7 +2,7 @@ import click
 from flask import Flask
 from flask.cli import with_appcontext
 
-import app.commands as commands
+import app.cli_commands as cli_commands
 from app.config import ConfigType, DeploymentConfig, DevelopmentConfig, TestingConfig
 from app.extentions import db, ma, migrate
 
@@ -52,6 +52,10 @@ def register_blueprints(app):
 
     app.register_blueprint(agv_request_handlers, url_prefix="/agv_request_handlers")
 
+    from app.commands import commands
+
+    app.register_blueprint(commands, url_prefix="/commands")
+
 
 # TODO: Set up error_handlers, possibly (could just do validation purely from within backend)
 def register_error_handlers(app):
@@ -64,14 +68,16 @@ def configure_logging(app):
 
 
 def initialize_database(app):
+    from app.agvs.models import AGV
+    from app.commands.models import Command
+    from app.tasks.models import Task, Waypoint
+
     with app.app_context():
         # db.drop_all()
-        from app.agvs.models import AGV
-        from app.tasks.models import Task, Waypoint
         db.create_all()
         db.session.commit()
 
 
 def register_commands(app):
-    app.cli.add_command(commands.init_db)
-    app.cli.add_command(commands.test)
+    app.cli.add_command(cli_commands.init_db)
+    app.cli.add_command(cli_commands.test)

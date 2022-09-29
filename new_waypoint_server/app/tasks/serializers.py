@@ -1,9 +1,8 @@
-from app.agvs.constants import AGVState
 from app.core import validators
 from app.database import db
 from app.extentions import ma
 from app.tasks.constants import Priority, TaskStatus
-from marshmallow import ValidationError, fields, validates_schema
+from marshmallow import ValidationError, fields, pre_load, validates_schema
 from marshmallow_enum import EnumField
 
 from .models import Task, Waypoint

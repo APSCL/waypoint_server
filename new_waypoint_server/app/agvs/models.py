@@ -1,5 +1,4 @@
 from app.database import Column, Model, db, relationship
-from app.tasks.models import Task
 
 from .constants import AGVState
 
@@ -19,6 +18,7 @@ class AGV(Model):
     tasks = relationship(
         "Task",
         backref="agv",
+        lazy="joined",
     )
     current_task_id = Column(db.Integer, nullable=True)
     x = Column(db.Float)

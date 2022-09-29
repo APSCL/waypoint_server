@@ -1,3 +1,4 @@
+from app.commands.serializers import CommandSerializer
 from app.tasks.serializers import TaskDetailSerializer
 from flask import jsonify, make_response, request
 from flask_api import status
@@ -33,6 +34,14 @@ def handle_new_task_request():
     # succeed!
 
 
+def create_update_status_response(success, debug_message, data):
+    return {
+        "update_successful": success,
+        "debug_message": debug_message,
+        "command": data,
+    }
+
+
 @agv_request_handlers.route("/update_state/", methods=["POST"])
 def handle_agv_update_state():
     serializer = AGVUpdateSerializer()
@@ -41,12 +50,13 @@ def handle_agv_update_state():
     if errors:
         return make_response(jsonify(errors), status.HTTP_400_BAD_REQUEST)
     validated_data = serializer.load(data)
-    update_successful, update_debug_message = AGVUpdateController.update_agv(validated_data)
+    update_successful, update_debug_message, update_json = AGVUpdateController.update_agv(validated_data)
+    response = create_update_status_response(update_successful, update_debug_message, update_json)
     if not update_successful:
-        return make_response(jsonify({"message": update_debug_message}), status.HTTP_400_BAD_REQUEST)
+        return make_response(jsonify(response), status.HTTP_400_BAD_REQUEST)
 
     # TODO: parse commands and send as a handshake to the AGV
-    return make_response(jsonify({"message": "update successful"}), status.HTTP_200_OK)
+    return make_response(jsonify(response), status.HTTP_200_OK)
 
     # get the update and serialize that the update is a okay
     # if the agv is in the done state (write flexibly):
