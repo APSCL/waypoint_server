@@ -1,77 +1,61 @@
 from functools import cached_property
 
+from app.agvs.constants import AGVDriveTrainType
 from app.core.utils import euclidean_dist
 from app.database import Column, Model, db, relationship
 
 from .constants import Priority, TaskStatus
 
 
-class PseudoTask(Model):
-    __tablename__ = "pseudotask"
-    id = Column(db.Integer, primary_key=True)
-    goal_x = Column(db.Float)
-    goal_y = Column(db.Float)
-    priority = Column(db.Enum(Priority), default=Priority.LOW, nullable=False)
-
-    def __init__(self, goal_x=None, goal_y=None, priority=None):
-        self.goal_y = goal_y if goal_y is not None else 0.0
-        self.goal_x = goal_x if goal_x is not None else 0.0
-        if priority is not None and type(priority) is Priority:
-            self.priority = priority
-
-    def __repr__(self):
-        return f"PSEUDO TASK:{self.id}| priority:{self.priority} | GOAL:({self.goal_x},{self.goal_y})"
-
-
+# TODO: Add an internal ordering field when this task is registered to an AGV
 class Task(Model):
     """
-    TODO: Add model description
+    This model servers as the internal representation for user created tasks
+
+    id : A unique identifier for each Task
+    priority : the user specified urgency of a task (can be LOW, MEDIUM, HIGH), priority is taken into acount by the scheduling algorithms
+    status : indicates which stage of processing a Task is in (ie - INCOMPLETE, IN_PROGRESS, COMPLETE)
+    drive_train_type : indicates the Task is reserved for an AGV with a specific drive train (can be MECANUM, ACKERMANN)
+    waypoints : relational link to the waypoints (locations on a 2D plane) associated with this task
+    agv_id : indicates which AGV this task is assigned to
     """
 
     __tablename__ = "task"
-    # id will also serve as the "ordering" metric for queueing
     id = Column(db.Integer, primary_key=True)
     priority = Column(db.Enum(Priority), default=Priority.MEDIUM, nullable=False)
     status = Column(db.Enum(TaskStatus), default=TaskStatus.INCOMPLETE, nullable=False)
+    drive_train_type = Column(db.Enum(AGVDriveTrainType), default=None, nullable=True)
     waypoints = relationship(
         "Waypoint",
         backref="task",
     )
-    # for the one to one field connection an agv to a task
     agv_id = Column(db.Integer, db.ForeignKey("agv.id"))
 
     @cached_property
     def num_waypoints(self):
-        """
-        TODO: Add function description
-        """
         if not self.waypoints:
             return 0
         return len(self.waypoints)
 
     @cached_property
     def starting_waypoint(self):
-        """
-        TODO: Add function description
-        """
         return Waypoint.query.filter_by(task_id=self.id, order=0).first()
 
     @property
     def get_next_unvisited_waypoint(self):
-        """
-        TODO: Add function description
-        """
-        return Waypoint.query.filter_by(task_id=self.id, visited=False).order_by(Waypoint.order.asc()).first()
+        return (
+            Waypoint.query.filter_by(task_id=self.id, visited=False)
+            .order_by(Waypoint.order.asc())
+            .first()
+        )
 
-    # this will not include the length of the agv to the first waypoint
     @cached_property
     def path_dist_lower_bound(self):
-        """
-        TODO: Add function description
-        """
         if not self.waypoints:
             return 0
-        task_waypoints = Waypoint.query.filter_by(task_id=self.id).order_by(Waypoint.order.asc()).all()
+        task_waypoints = (
+            Waypoint.query.filter_by(task_id=self.id).order_by(Waypoint.order.asc()).all()
+        )
         total_dist = 0
         for ind in range(1, len(task_waypoints)):
             previous_waypoint, current_waypoint = task_waypoints[ind - 1], task_waypoints[ind]
@@ -91,44 +75,55 @@ class Task(Model):
         to the ending point of the task's defined waypoint path
         """
         starting_waypoint = self.starting_waypoint
-        return euclidean_dist(starting_waypoint.x, start_x, starting_waypoint.y, start_y) + self.path_dist_lower_bound
+        return (
+            euclidean_dist(starting_waypoint.x, start_x, starting_waypoint.y, start_y)
+            + self.path_dist_lower_bound
+        )
 
-    def __init__(self, priority=None, status=None, agv=None):
-        # TODO: Implement raising custom exceptions to make this more clean
+    def __init__(self, priority=None, status=None, agv_id=None, drive_train_type=None):
         if priority is not None and type(priority) is Priority:
             self.priority = priority
         if status is not None and type(status) is TaskStatus:
             self.status = status
-        if agv is not None:
-            self.agv = agv
+        if agv_id is not None:
+            self.agv_id = agv_id
+        if drive_train_type is not None:
+            self.drive_train_type = drive_train_type
 
     def __repr__(self):
-        return f"TASK:{self.id}| AGV:{self.agv_id}| status:{self.status}| priority:{self.priority}| path dist LB: {self.path_dist_lower_bound}"
+        return f"TASK:{self.id}| AGV:{self.agv_id}| status:{self.status}| priority:{self.priority}| drive_train_type: {self.drive_train_type}  | path dist LB: {self.path_dist_lower_bound}"
 
 
 class Waypoint(Model):
     """
-    TODO: Add model description
+    This model servers as the internal representation for user created waypoints (effectively coordinates)
+
+    id : A unique identifier for each Waypoint
+    x : the x-coordinate position of the Waypoint
+    y : the y-coordinate position of the Waypoint
+    theta : the rotational direction of the Waypoint (in radians)
+    order : indicates when this Waypoint should be visited (in comparison to other waypoints in the same Task)
+    visited : indicates whether the Waypoint was navigated to by the AGV
+    task_id : indicates which Task this waypoint belongs to
     """
 
     __tablename__ = "waypoint"
-    # id will also serve as the "ordering" metric for queueing
     id = Column(db.Integer, primary_key=True)
     x = Column(db.Float)
     y = Column(db.Float)
-    order = Column(db.Float, default=0)
+    theta = Column(db.Float)
+    order = Column(db.Integer, default=0)
     visited = Column(db.Boolean, default=False)
-
-    # for the many to one relationship with tasks
     task_id = Column(db.Integer, db.ForeignKey("task.id"))
 
-    def __init__(self, x=None, y=None, order=None, visited=None, task=None):
+    def __init__(self, x=None, y=None, theta=None, order=None, visited=None, task=None):
         self.x = x if x is not None else 0.0
         self.y = y if y is not None else 0.0
+        self.theta = theta if theta is not None else 0.0
         self.order = order if order is not None else 0
         self.visted = visited if visited is not None else False
         if task is not None:
             self.task = task
 
     def __repr__(self):
-        return f"WAYPOINT:{self.id}| TASK:{self.task_id} | ({self.x},{self.y}) | order:{self.order} | visited:{self.visited}"
+        return f"WAYPOINT:{self.id}| TASK:{self.task_id} | (x:{self.x},y:{self.y}, 0:{self.theta}) | order:{self.order} | visited:{self.visited}"

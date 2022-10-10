@@ -6,3 +6,8 @@ class AGVState(BaseEnum):
     BUSY = "BUSY"
     DONE = "DONE"
     STOPPED = "STOPPED"
+
+
+class AGVDriveTrainType(BaseEnum):
+    MECANUM = "MECANUM"
+    ACKERMANN = "ACKERMANN"

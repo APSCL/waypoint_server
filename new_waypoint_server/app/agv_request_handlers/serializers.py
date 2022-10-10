@@ -1,5 +1,3 @@
-from email.policy import default
-
 from app.agvs.constants import AGVState
 from app.agvs.models import AGV
 from app.core import validators
@@ -32,12 +30,15 @@ class AGVUpdateSerializer(ma.Schema):
         if not AGV.query.filter_by(id=ros_domain_id).count():
             raise ValidationError("AGV with provided ROS_DOMAIN_ID is not registered!")
 
-        # perform coordinate validation with respect to the map
         if not validators.validate_2d_coordinates(data.get("x"), data.get("y")):
             raise ValidationError(
                 "X or Y coordinate is out of bounds for the allowable range of navigatable coordinates"
             )
         if not validators.validate_theta(data.get("theta")):
-            raise ValidationError("theta is out of bounds from the allowable range of values: [-pi, pi]")
+            raise ValidationError(
+                "theta is out of bounds from the allowable range of values: [-pi, pi]"
+            )
 
-        # TODO: Validate data based on which state you're in (READY, BUSY, DONE) for guarantee of data integrity later!
+        state = self.context.get("state", None)
+        if state and not validators.validate_agv_update_data(state, data):
+            raise ValidationError(f"Invalid data for AGV:{state} Update")

@@ -4,6 +4,16 @@ from .constants import CommandTypes
 
 
 class Command(Model):
+    """
+    This model serves as a way to store client issued commands for AGVs
+
+    id : A unique identifier for each Command
+    agv_id : indicates which AGV a command should be assigned to
+    task_id : indicates which Task a command is refering to (ie - used for CANCEL_TASK)
+    type : the type of command issued (can be CANCEL_TASK, CANCEL_AGV, STOP_AGV, START_AGV)
+    processed : indicates whether the command has been correctly assigned and executed
+    """
+
     __tablename__ = "command"
     id = Column(db.Integer, primary_key=True)
     agv_id = Column(db.Integer, nullable=True)
@@ -11,7 +21,6 @@ class Command(Model):
     type = Column(db.Enum(CommandTypes), nullable=True)
     processed = Column(db.Boolean, default=False)
 
-    # TODO: For now  assume that all created commands have valid task and agv_ids
     def __init__(self, agv_id=None, task_id=None, type=None, processed=None):
         self.agv_id = agv_id
         self.task_id = task_id

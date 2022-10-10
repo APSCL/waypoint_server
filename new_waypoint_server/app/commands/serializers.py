@@ -33,7 +33,11 @@ class CommandSerializer(ma.SQLAlchemyAutoSchema):
         return data
 
     def _command_is_agv_related(self, command_type):
-        agv_related_commands = [CommandTypes.START_AGV, CommandTypes.STOP_AGV, CommandTypes.CANCEL_AGV]
+        agv_related_commands = [
+            CommandTypes.START_AGV,
+            CommandTypes.STOP_AGV,
+            CommandTypes.CANCEL_AGV,
+        ]
         if command_type in agv_related_commands:
             return True
         return False
@@ -44,64 +48,46 @@ class CommandSerializer(ma.SQLAlchemyAutoSchema):
             return True
         return False
 
-    def _validate_cancel_agv_command(self, agv_id):
-        agv = AGV.query.filter_by(id=agv_id).first()
-        if agv.status == AGVState.READY:
-            raise ValidationError("Cancelation Task not necessary for idle AGV")
-
-    def _validate_cancel_task_command(self, task_id):
-        task = Task.query.filter_by(id=task_id).first()
-        if task.status != TaskStatus.IN_PROGRESS:
-            raise ValidationError("Cancelation Task not necessary for processed, or unprocessed Task")
-
-    def _validate_stop_agv_command(self, agv_id):
-        stop_command_exists = (
-            Command.query.filter((AGV.id == agv_id))
-            .filter_by(processed=False, type=CommandTypes.STOP_AGV)
-            .order_by(Command.id.asc())
-        ).first()
-        if stop_command_exists:
-            raise ValidationError("Redundant creation request for STOP AGV")
-
-    def _validate_start_agv_command(self, agv_id):
-        start_command_exists = (
-            Command.query.filter((AGV.id == agv_id))
-            .filter_by(processed=False, type=CommandTypes.START_AGV)
-            .order_by(Command.id.asc())
-        ).first()
-        if start_command_exists:
-            raise ValidationError("Redundant creation request for START AGV")
-
     @validates_schema
     def perform_validation(self, data, **kwargs):
-        command_type, task_id, ros_domain_id = data.get("type"), data.get("task_id"), data.get("agv_id", None)
+        command_type, task_id, agv_id = (
+            data.get("type"),
+            data.get("task_id"),
+            data.get("agv_id", None),
+        )
 
-        if task_id is None and ros_domain_id is None:
+        if task_id is None and agv_id is None:
             raise ValidationError("Command provided without and AGV or Task ID")
 
-        if task_id is not None and ros_domain_id is not None:
-            raise ValidationError("Command provided both a and AGV a Task ID, this is not permissable")
+        if task_id is not None and agv_id is not None:
+            raise ValidationError("Command cannot be created with both a AGV a Task ID")
 
-        if self._command_is_agv_related(command_type) and ros_domain_id is None:
+        # TODO: Consider adding a check if the "agv_id" maps to an existing AGV object within the database
+        if self._command_is_agv_related(command_type) and agv_id is None:
             raise ValidationError("AGV Command Type provided with no valid AGV ID")
 
+        # TODO: Consider adding a check if the "task_id" maps to an existing AGV object within the database
         if self._command_is_task_related(command_type) and task_id is None:
             raise ValidationError("Task Command Type provided with no valid Task ID")
 
-        if ros_domain_id is not None and AGV.query.filter_by(id=ros_domain_id).count() == 0:
-            raise ValidationError("AGV with provided ROS_DOMAIN_ID not found!")
+        if agv_id is not None and AGV.query.filter_by(id=agv_id).count() == 0:
+            raise ValidationError("AGV with provided id not found!")
 
         if task_id is not None and Task.query.filter_by(id=task_id).count() == 0:
-            raise ValidationError("Task with provided ID not found!")
+            raise ValidationError("Task with provided id not found!")
 
-        agv = AGV.query.filter_by(id=ros_domain_id).first()
-        if agv is not None and command_type == CommandTypes.START_AGV and agv.status != AGVState.STOPPED:
-            raise ValidationError("AGV cannot START_AGV when the AGV is currently not stopped!")
+        agv = AGV.query.filter_by(id=agv_id).first()
+        if (
+            agv is not None
+            and command_type != CommandTypes.START_AGV
+            and agv.status == AGVState.STOPPED
+        ):
+            raise ValidationError(
+                "AGV cannot accept new commands (except for START_AGV) while it is stopped!"
+            )
 
-        if agv is not None and command_type != CommandTypes.START_AGV and agv.status == AGVState.STOPPED:
-            raise ValidationError("AGV cannot accept new commands (except for START_AGV) while it is stopped!")
+        # TODO: Add validation against commands that are not pertinent, ie)
+        # don't allow a cancelation task to be created for a task not currently being processed
 
-        # TODO: Return DEBUG INFORMATION IN VALIDATION FOR COMMAND TYPES
-        # Validate that commands are pertinent, ie) don't allow a cancelation task to be created for a task not currently being processed
-        if not validators.validate_command(command_type, ros_domain_id, task_id):
+        if not validators.validate_command(command_type, agv_id, task_id):
             raise ValidationError(f"Invalid creation for command: {command_type}")
