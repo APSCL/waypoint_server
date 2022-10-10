@@ -1,3 +1,4 @@
+from app.core import validators
 from app.database import db
 from flask import current_app, jsonify, make_response, request
 from flask_api import status
@@ -21,12 +22,31 @@ class CommandCreateView(Resource):
 
 
 class CommandListView(Resource):
-    def _get_queryset(self):
-        return Command.query
+    def _query_parameters_valid(self, type):
+        if type is not None and not validators.is_valid_command_type(type):
+            return False
+        return True
 
-    # TODO: Consider filtering all commands by all of its fields (might help!)
+    def _get_filtered_task_queryset(self, agv_id, task_id, type, processed):
+        filter_kwargs = {}
+        if agv_id is not None:
+            filter_kwargs["agv_id"] = agv_id
+        if task_id is not None:
+            filter_kwargs["task_id"] = task_id
+        if type is not None:
+            filter_kwargs["type"] = type
+        if processed is not None:
+            filter_kwargs["processed"] = processed
+        return Command.query.filter_by(**filter_kwargs).all()
+
     def get(self):
-        queryset = self._get_queryset().all()
+        agv_id, task_id, type, processed = (
+            request.args.get("agv_id", None),
+            request.args.get("task_id", None),
+            request.args.get("type", None),
+            request.args.get("processed", None),
+        )
+        queryset = self._get_filtered_task_queryset(agv_id, task_id, type, processed)
         if not queryset:
             return make_response(jsonify([]), status.HTTP_200_OK)
         serializer = CommandSerializer(many=True)
@@ -34,7 +54,7 @@ class CommandListView(Resource):
         return make_response(jsonify(data), status.HTTP_200_OK)
 
     def delete(self):
-        commands = self._get_queryset().all()
+        commands = Command.query.all()
         if not commands:
             return make_response(
                 jsonify({"message": "No Commands currently exist to delete"}), status.HTTP_202_ACCEPTED
@@ -68,7 +88,8 @@ class CommandDetailView(Resource):
         command = self._get_queryset().filter_by(id=id).first()
         if command is None:
             return make_response(
-                jsonify({"message": "Command was not registered within the waypoint server"}), status.HTTP_202_ACCEPTED
+                jsonify({"message": "Command was not registered within the waypoint server"}),
+                status.HTTP_400_BAD_REQUEST,
             )
         command.delete()
         return make_response(jsonify({"message": "Command successfully deleted"}), status.HTTP_200_OK)

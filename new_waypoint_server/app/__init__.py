@@ -1,1 +1,1 @@
-# Main application package
+# Waypoint Server application package
